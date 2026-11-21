@@ -1,0 +1,619 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- GLOBAL HELPERS ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 'sandeepasmy@gmail.com' && request.auth.token.email_verified == true)
+      );
+    }
+
+    function hasValidServerTimestamps(data) {
+      return data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isStr(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    // --- ENTITY VALIDATION BLUEPRINTS ---
+
+    function isValidWorkspaceUser(data, userId) {
+      return data.userId == userId &&
+             isStr(data.email, 1, 200) &&
+             isStr(data.displayName, 1, 120) &&
+             isStr(data.activePersonaId, 1, 64) &&
+             isStr(data.activePortal, 1, 64) &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidStudioMember(data, userId) {
+      return data.userId == userId &&
+             isStr(data.username, 2, 50) &&
+             isStr(data.fullName, 1, 100) &&
+             isStr(data.designation, 1, 120) &&
+             isStr(data.department, 1, 100) &&
+             isStr(data.role, 2, 50) &&
+             isStr(data.assignedChannelsCsv, 1, 300) &&
+             isStr(data.avatarInitials, 1, 6) &&
+             data.avatarColorHex is int &&
+             data.accountStatus in ['ACTIVE', 'SUSPENDED'] &&
+             data.lastLoginAt is int &&
+             isStr(data.email, 1, 200) &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidChannel(data, userId) {
+      return data.userId == userId &&
+             isStr(data.name, 1, 80) &&
+             isStr(data.categoryTag, 1, 80) &&
+             isStr(data.description, 1, 600) &&
+             isStr(data.leadCoordinator, 1, 80) &&
+             data.accentColorHex is int &&
+             data.monthlyVideoTarget is int && data.monthlyVideoTarget >= 0 && data.monthlyVideoTarget <= 1000 &&
+             data.videosProduced is int && data.videosProduced >= 0 && data.videosProduced <= 1000 &&
+             data.videosPublished is int && data.videosPublished >= 0 && data.videosPublished <= 1000 &&
+             (data.growthPercent is float || data.growthPercent is int) &&
+             isStr(data.subscribersLabel, 1, 40) &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidWorkspaceItem(data, userId) {
+      return data.userId == userId &&
+             isStr(data.channelId, 1, 64) &&
+             isStr(data.itemType, 1, 64) &&
+             isStr(data.title, 1, 200) &&
+             isStr(data.details, 0, 1500) &&
+             isStr(data.metaBadge, 1, 64) &&
+             data.completed is bool &&
+             isStr(data.ownerName, 1, 100) &&
+             data.updatedAtMillis is int &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidStudioTask(data, userId) {
+      return data.userId == userId &&
+             isStr(data.taskCode, 1, 32) &&
+             isStr(data.title, 1, 200) &&
+             isStr(data.description, 0, 2000) &&
+             isStr(data.instructions, 0, 2000) &&
+             isStr(data.channelId, 1, 64) &&
+             isStr(data.channelName, 1, 100) &&
+             isStr(data.category, 1, 64) &&
+             isStr(data.assignedToIdsCsv, 1, 500) &&
+             isStr(data.assignedToNamesCsv, 1, 600) &&
+             isStr(data.createdById, 1, 64) &&
+             data.priority in ['LOW', 'MEDIUM', 'HIGH', 'URGENT'] &&
+             data.status in ['ASSIGNED', 'ACCEPTED', 'IN_PROGRESS', 'SUBMITTED_FOR_REVIEW', 'REVISION_REQUIRED', 'APPROVED', 'COMPLETED', 'OVERDUE'] &&
+             isStr(data.reviewStatus, 1, 64) &&
+             data.startDateMillis is int &&
+             data.deadlineMillis is int &&
+             data.expectedMinutes is int && data.expectedMinutes >= 0 && data.expectedMinutes <= 100000 &&
+             data.actualMinutes is int && data.actualMinutes >= 0 && data.actualMinutes <= 100000 &&
+             (!('completedAtMillis' in data) || data.completedAtMillis == null || data.completedAtMillis is int) &&
+             isStr(data.delayReason, 0, 1000) &&
+             (!('revisedDeadlineMillis' in data) || data.revisedDeadlineMillis == null || data.revisedDeadlineMillis is int) &&
+             (!('revisedDeadlineMet' in data) || data.revisedDeadlineMet == null || data.revisedDeadlineMet is bool) &&
+             isStr(data.managerComments, 0, 1500) &&
+             data.complexityWeight is int && data.complexityWeight >= 1 && data.complexityWeight <= 5 &&
+             isStr(data.attachedFileName, 0, 255) &&
+             isStr(data.submissionNote, 0, 1500) &&
+             isStr(data.submissionFileName, 0, 255) &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidAttendance(data, userId) {
+      return data.userId == userId &&
+             isStr(data.memberId, 1, 64) &&
+             isStr(data.userName, 1, 100) &&
+             isStr(data.dateKey, 4, 20) &&
+             (!('checkInTimeMillis' in data) || data.checkInTimeMillis == null || data.checkInTimeMillis is int) &&
+             (!('checkOutTimeMillis' in data) || data.checkOutTimeMillis == null || data.checkOutTimeMillis is int) &&
+             isStr(data.verificationMethod, 1, 64) &&
+             (data.latitude is float || data.latitude is int) &&
+             (data.longitude is float || data.longitude is int) &&
+             (data.distanceMeters is float || data.distanceMeters is int) &&
+             isStr(data.wifiSsid, 0, 100) &&
+             data.lateArrival is bool &&
+             data.earlyDeparture is bool &&
+             data.workingMinutes is int && data.workingMinutes >= 0 && data.workingMinutes <= 2000 &&
+             isStr(data.status, 1, 40) &&
+             isStr(data.correctionReason, 0, 600) &&
+             data.correctionRequested is bool &&
+             isStr(data.correctionApprovedBy, 0, 100) &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidOfficeConfig(data, userId) {
+      return data.userId == userId &&
+             isStr(data.officeName, 1, 140) &&
+             (data.officeLat is float || data.officeLat is int) &&
+             (data.officeLng is float || data.officeLng is int) &&
+             (data.geofenceRadiusMeters is float || data.geofenceRadiusMeters is int) &&
+             data.geofenceRadiusMeters >= 10 && data.geofenceRadiusMeters <= 10000 &&
+             isStr(data.authorizedWifiSsid, 1, 100) &&
+             data.workStartHour is int && data.workStartMinute is int &&
+             data.workEndHour is int && data.workEndMinute is int &&
+             isStr(data.currentQrToken, 1, 100) &&
+             data.qrUpdatedAt is int &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidAttendanceAudit(data, userId) {
+      return data.userId == userId &&
+             isStr(data.targetUserName, 1, 100) &&
+             isStr(data.action, 1, 80) &&
+             isStr(data.performedBy, 1, 100) &&
+             isStr(data.details, 0, 1000) &&
+             data.timestampMillis is int &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidScript(data, userId) {
+      return data.userId == userId &&
+             isStr(data.scriptCode, 1, 32) &&
+             isStr(data.channelId, 1, 64) &&
+             isStr(data.channelName, 1, 100) &&
+             isStr(data.videoTitle, 1, 220) &&
+             isStr(data.writerId, 1, 64) &&
+             isStr(data.writerName, 1, 100) &&
+             isStr(data.anchorName, 1, 100) &&
+             isStr(data.editorName, 1, 100) &&
+             data.deadlineMillis is int &&
+             data.status in ['IDEA', 'SCRIPT_WRITING', 'SCRIPT_SUBMITTED', 'VERIFICATION', 'REVISION_REQUIRED', 'APPROVED', 'SHOOTING_READY'] &&
+             data.currentVersion is int && data.currentVersion >= 1 && data.currentVersion <= 500 &&
+             isStr(data.contentBody, 1, 25000) &&
+             isStr(data.reviewerComments, 0, 2000) &&
+             isStr(data.highlightedErrors, 0, 2000) &&
+             data.factCheckVerified is bool &&
+             isStr(data.attachmentName, 0, 255) &&
+             data.createdAtMillis is int &&
+             data.updatedAtMillis is int &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidScriptVersion(data, userId) {
+      return data.userId == userId &&
+             isStr(data.scriptDocId, 1, 128) &&
+             data.versionNumber is int && data.versionNumber >= 1 && data.versionNumber <= 500 &&
+             isStr(data.contentSnapshot, 1, 25000) &&
+             isStr(data.editedBy, 1, 100) &&
+             isStr(data.changeNote, 0, 500) &&
+             data.createdAtMillis is int &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidCalendarEntry(data, userId) {
+      return data.userId == userId &&
+             isStr(data.channelId, 1, 64) &&
+             isStr(data.channelName, 1, 100) &&
+             isStr(data.contentTitle, 1, 200) &&
+             isStr(data.category, 1, 100) &&
+             isStr(data.scriptWriter, 1, 100) &&
+             isStr(data.anchorName, 1, 100) &&
+             isStr(data.editorName, 1, 100) &&
+             isStr(data.shootingDateKey, 4, 20) &&
+             isStr(data.shootingTimeSlot, 1, 40) &&
+             isStr(data.editingDeadlineKey, 4, 20) &&
+             isStr(data.publishingDateKey, 4, 20) &&
+             isStr(data.publishingTime, 1, 30) &&
+             isStr(data.platform, 1, 40) &&
+             isStr(data.status, 1, 60) &&
+             isStr(data.studioRoom, 1, 60) &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidShootingSchedule(data, userId) {
+      return data.userId == userId &&
+             isStr(data.scheduleMode, 1, 40) &&
+             isStr(data.channelId, 1, 64) &&
+             isStr(data.channelName, 1, 100) &&
+             isStr(data.topicOrKathaName, 1, 200) &&
+             isStr(data.scriptName, 1, 120) &&
+             isStr(data.talentId, 1, 64) &&
+             isStr(data.talentName, 1, 100) &&
+             isStr(data.coordinatorName, 1, 100) &&
+             isStr(data.editorName, 1, 100) &&
+             isStr(data.shootDateKey, 4, 20) &&
+             isStr(data.arrivalTime, 1, 30) &&
+             isStr(data.startTime, 1, 30) &&
+             isStr(data.expectedEndTime, 1, 30) &&
+             isStr(data.actualEndTime, 0, 30) &&
+             isStr(data.studioRoom, 1, 60) &&
+             isStr(data.specialRequirements, 0, 1000) &&
+             isStr(data.materialsRequired, 0, 1000) &&
+             data.materialsAvailable is bool &&
+             isStr(data.purchaseRequired, 0, 1000) &&
+             isStr(data.recordingStatus, 1, 40) &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidAiAssignment(data, userId) {
+      return data.userId == userId &&
+             isStr(data.assignmentCode, 1, 32) &&
+             isStr(data.channelId, 1, 64) &&
+             isStr(data.channelName, 1, 100) &&
+             isStr(data.promptType, 1, 50) &&
+             isStr(data.title, 1, 200) &&
+             isStr(data.brief, 0, 2000) &&
+             data.deadlineMillis is int &&
+             data.assignedAtMillis is int &&
+             (!('startedAtMillis' in data) || data.startedAtMillis == null || data.startedAtMillis is int) &&
+             (!('submittedAtMillis' in data) || data.submittedAtMillis == null || data.submittedAtMillis is int) &&
+             data.timeTakenMinutes is int && data.timeTakenMinutes >= 0 && data.timeTakenMinutes <= 100000 &&
+             isStr(data.generatedPromptText, 0, 25000) &&
+             isStr(data.attachedAssetName, 0, 255) &&
+             data.status in ['ASSIGNED', 'IN_PROGRESS', 'SUBMITTED', 'REVISION_REQUIRED', 'APPROVED'] &&
+             isStr(data.reviewerNote, 0, 1000) &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidStudioFile(data, userId) {
+      return data.userId == userId &&
+             isStr(data.channelId, 1, 64) &&
+             isStr(data.channelName, 1, 100) &&
+             isStr(data.projectName, 1, 150) &&
+             isStr(data.contentTitle, 1, 200) &&
+             isStr(data.fileType, 1, 50) &&
+             isStr(data.fileName, 1, 255) &&
+             isStr(data.uploadedBy, 1, 100) &&
+             isStr(data.uploadedById, 1, 64) &&
+             data.uploadDateMillis is int &&
+             isStr(data.version, 1, 30) &&
+             isStr(data.fileSizeLabel, 1, 40) &&
+             isStr(data.approvalStatus, 1, 40) &&
+             isStr(data.contentUri, 0, 2000) &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidSocialPost(data, userId) {
+      return data.userId == userId &&
+             isStr(data.channelId, 1, 64) &&
+             isStr(data.channelName, 1, 100) &&
+             isStr(data.title, 1, 200) &&
+             data.platform in ['YOUTUBE', 'FACEBOOK', 'INSTAGRAM'] &&
+             isStr(data.videoFileName, 0, 255) &&
+             isStr(data.thumbnailName, 0, 255) &&
+             isStr(data.caption, 0, 2200) &&
+             isStr(data.description, 0, 5000) &&
+             isStr(data.hashtags, 0, 500) &&
+             isStr(data.keywords, 0, 500) &&
+             isStr(data.scriptCode, 0, 40) &&
+             isStr(data.publishDateKey, 4, 20) &&
+             isStr(data.publishTime, 1, 30) &&
+             data.status in ['READY_FOR_PUBLISHING', 'SCHEDULED', 'PUBLISHED', 'PERFORMANCE_TRACKING'] &&
+             isStr(data.publishedUrl, 0, 500) &&
+             data.checklistVerified is bool &&
+             data.viewsCount is int && data.viewsCount >= 0 &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidFinancialRecord(data, userId) {
+      return data.userId == userId &&
+             data.recordType in ['INVESTMENT', 'EXPENSE', 'REVENUE'] &&
+             isStr(data.category, 1, 80) &&
+             isStr(data.title, 1, 200) &&
+             (data.amountInr is float || data.amountInr is int) && data.amountInr >= 0 &&
+             isStr(data.monthKey, 4, 20) &&
+             isStr(data.recordDateKey, 4, 20) &&
+             isStr(data.enteredBy, 1, 100) &&
+             isStr(data.notes, 0, 1000) &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidNotification(data, userId) {
+      return data.userId == userId &&
+             isStr(data.recipientUserId, 1, 64) &&
+             isStr(data.title, 1, 200) &&
+             isStr(data.message, 1, 1000) &&
+             isStr(data.category, 1, 40) &&
+             data.read is bool &&
+             data.createdAtMillis is int &&
+             hasValidServerTimestamps(data);
+    }
+
+    function isValidLoginHistory(data, userId) {
+      return data.userId == userId &&
+             isStr(data.memberId, 1, 64) &&
+             isStr(data.username, 1, 60) &&
+             isStr(data.portal, 1, 64) &&
+             isStr(data.deviceInfo, 1, 150) &&
+             data.success is bool &&
+             data.timestampMillis is int &&
+             hasValidServerTimestamps(data);
+    }
+
+    // --- ADMIN LOOKUP ---
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && request.auth != null && request.auth.uid == adminId;
+      allow list, write: if false;
+    }
+
+    // --- WORKSPACE OWNER DOCUMENT ---
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isOwner(userId) &&
+                       incoming().keys().hasAll(['userId', 'email', 'displayName', 'activePersonaId', 'activePortal', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'email', 'displayName', 'activePersonaId', 'activePortal', 'createdAt', 'updatedAt']) &&
+                       isValidWorkspaceUser(incoming(), userId);
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidWorkspaceUser(incoming(), userId) &&
+                       (isOwner(userId) || isAdmin()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['email', 'displayName', 'activePersonaId', 'activePortal', 'updatedAt']);
+      allow delete: if isValidId(userId) && (isOwner(userId) || isAdmin());
+
+      match /studio_members/{memberId} {
+        allow get: if isValidId(memberId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(memberId) &&
+                         incoming().keys().hasAll(['userId', 'username', 'fullName', 'designation', 'department', 'role', 'assignedChannelsCsv', 'avatarInitials', 'avatarColorHex', 'accountStatus', 'lastLoginAt', 'email', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'username', 'fullName', 'designation', 'department', 'role', 'assignedChannelsCsv', 'avatarInitials', 'avatarColorHex', 'accountStatus', 'lastLoginAt', 'email', 'createdAt', 'updatedAt']) &&
+                         isValidStudioMember(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(memberId) && isValidStudioMember(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['accountStatus', 'lastLoginAt', 'designation', 'assignedChannelsCsv', 'updatedAt']);
+        allow delete: if isValidId(memberId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /channels/{channelId} {
+        allow get: if isValidId(channelId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(channelId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'categoryTag', 'description', 'leadCoordinator', 'accentColorHex', 'monthlyVideoTarget', 'videosProduced', 'videosPublished', 'growthPercent', 'subscribersLabel', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'categoryTag', 'description', 'leadCoordinator', 'accentColorHex', 'monthlyVideoTarget', 'videosProduced', 'videosPublished', 'growthPercent', 'subscribersLabel', 'createdAt', 'updatedAt']) &&
+                         isValidChannel(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(channelId) && isValidChannel(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['videosProduced', 'videosPublished', 'monthlyVideoTarget', 'growthPercent', 'subscribersLabel', 'updatedAt']);
+        allow delete: if isValidId(channelId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /workspace_items/{itemId} {
+        allow get: if isValidId(itemId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(itemId) &&
+                         incoming().keys().hasAll(['userId', 'channelId', 'itemType', 'title', 'details', 'metaBadge', 'completed', 'ownerName', 'updatedAtMillis', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'channelId', 'itemType', 'title', 'details', 'metaBadge', 'completed', 'ownerName', 'updatedAtMillis', 'createdAt', 'updatedAt']) &&
+                         isValidWorkspaceItem(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(itemId) && isValidWorkspaceItem(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'metaBadge', 'details', 'updatedAtMillis', 'updatedAt']);
+        allow delete: if isValidId(itemId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /tasks/{taskId} {
+        allow get: if isValidId(taskId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(taskId) &&
+                         incoming().keys().hasAll(['userId', 'taskCode', 'title', 'description', 'instructions', 'channelId', 'channelName', 'category', 'assignedToIdsCsv', 'assignedToNamesCsv', 'createdById', 'priority', 'status', 'reviewStatus', 'startDateMillis', 'deadlineMillis', 'expectedMinutes', 'actualMinutes', 'delayReason', 'managerComments', 'complexityWeight', 'attachedFileName', 'submissionNote', 'submissionFileName', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'taskCode', 'title', 'description', 'instructions', 'channelId', 'channelName', 'category', 'assignedToIdsCsv', 'assignedToNamesCsv', 'createdById', 'priority', 'status', 'reviewStatus', 'startDateMillis', 'deadlineMillis', 'expectedMinutes', 'actualMinutes', 'completedAtMillis', 'delayReason', 'revisedDeadlineMillis', 'revisedDeadlineMet', 'managerComments', 'complexityWeight', 'attachedFileName', 'submissionNote', 'submissionFileName', 'createdAt', 'updatedAt']) &&
+                         isValidStudioTask(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(taskId) && isValidStudioTask(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'reviewStatus', 'actualMinutes', 'completedAtMillis', 'delayReason', 'revisedDeadlineMillis', 'revisedDeadlineMet', 'managerComments', 'submissionNote', 'submissionFileName', 'updatedAt']);
+        allow delete: if isValidId(taskId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /attendance/{attendanceId} {
+        allow get: if isValidId(attendanceId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(attendanceId) &&
+                         incoming().keys().hasAll(['userId', 'memberId', 'userName', 'dateKey', 'verificationMethod', 'latitude', 'longitude', 'distanceMeters', 'wifiSsid', 'lateArrival', 'earlyDeparture', 'workingMinutes', 'status', 'correctionReason', 'correctionRequested', 'correctionApprovedBy', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'memberId', 'userName', 'dateKey', 'checkInTimeMillis', 'checkOutTimeMillis', 'verificationMethod', 'latitude', 'longitude', 'distanceMeters', 'wifiSsid', 'lateArrival', 'earlyDeparture', 'workingMinutes', 'status', 'correctionReason', 'correctionRequested', 'correctionApprovedBy', 'createdAt', 'updatedAt']) &&
+                         isValidAttendance(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(attendanceId) && isValidAttendance(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['checkInTimeMillis', 'checkOutTimeMillis', 'earlyDeparture', 'workingMinutes', 'status', 'correctionReason', 'correctionRequested', 'correctionApprovedBy', 'updatedAt']);
+        allow delete: if isValidId(attendanceId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /office_configs/{configId} {
+        allow get: if isValidId(configId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(configId) &&
+                         incoming().keys().hasAll(['userId', 'officeName', 'officeLat', 'officeLng', 'geofenceRadiusMeters', 'authorizedWifiSsid', 'workStartHour', 'workStartMinute', 'workEndHour', 'workEndMinute', 'currentQrToken', 'qrUpdatedAt', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'officeName', 'officeLat', 'officeLng', 'geofenceRadiusMeters', 'authorizedWifiSsid', 'workStartHour', 'workStartMinute', 'workEndHour', 'workEndMinute', 'currentQrToken', 'qrUpdatedAt', 'createdAt', 'updatedAt']) &&
+                         isValidOfficeConfig(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(configId) && isValidOfficeConfig(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['officeName', 'officeLat', 'officeLng', 'geofenceRadiusMeters', 'authorizedWifiSsid', 'currentQrToken', 'qrUpdatedAt', 'updatedAt']);
+        allow delete: if isValidId(configId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /attendance_audits/{auditId} {
+        allow get: if isValidId(auditId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(auditId) &&
+                         incoming().keys().hasAll(['userId', 'targetUserName', 'action', 'performedBy', 'details', 'timestampMillis', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'targetUserName', 'action', 'performedBy', 'details', 'timestampMillis', 'createdAt', 'updatedAt']) &&
+                         isValidAttendanceAudit(incoming(), userId);
+        allow update: if false;
+        allow delete: if isValidId(auditId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /scripts/{scriptId} {
+        allow get: if isValidId(scriptId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(scriptId) &&
+                         incoming().keys().hasAll(['userId', 'scriptCode', 'channelId', 'channelName', 'videoTitle', 'writerId', 'writerName', 'anchorName', 'editorName', 'deadlineMillis', 'status', 'currentVersion', 'contentBody', 'reviewerComments', 'highlightedErrors', 'factCheckVerified', 'attachmentName', 'createdAtMillis', 'updatedAtMillis', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'scriptCode', 'channelId', 'channelName', 'videoTitle', 'writerId', 'writerName', 'anchorName', 'editorName', 'deadlineMillis', 'status', 'currentVersion', 'contentBody', 'reviewerComments', 'highlightedErrors', 'factCheckVerified', 'attachmentName', 'createdAtMillis', 'updatedAtMillis', 'createdAt', 'updatedAt']) &&
+                         isValidScript(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(scriptId) && isValidScript(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['videoTitle', 'anchorName', 'editorName', 'status', 'currentVersion', 'contentBody', 'reviewerComments', 'highlightedErrors', 'factCheckVerified', 'attachmentName', 'updatedAtMillis', 'updatedAt']);
+        allow delete: if isValidId(scriptId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /script_versions/{versionId} {
+        allow get: if isValidId(versionId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(versionId) &&
+                         incoming().keys().hasAll(['userId', 'scriptDocId', 'versionNumber', 'contentSnapshot', 'editedBy', 'changeNote', 'createdAtMillis', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'scriptDocId', 'versionNumber', 'contentSnapshot', 'editedBy', 'changeNote', 'createdAtMillis', 'createdAt', 'updatedAt']) &&
+                         isValidScriptVersion(incoming(), userId);
+        allow update: if false;
+        allow delete: if isValidId(versionId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /calendar_entries/{entryId} {
+        allow get: if isValidId(entryId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(entryId) &&
+                         incoming().keys().hasAll(['userId', 'channelId', 'channelName', 'contentTitle', 'category', 'scriptWriter', 'anchorName', 'editorName', 'shootingDateKey', 'shootingTimeSlot', 'editingDeadlineKey', 'publishingDateKey', 'publishingTime', 'platform', 'status', 'studioRoom', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'channelId', 'channelName', 'contentTitle', 'category', 'scriptWriter', 'anchorName', 'editorName', 'shootingDateKey', 'shootingTimeSlot', 'editingDeadlineKey', 'publishingDateKey', 'publishingTime', 'platform', 'status', 'studioRoom', 'createdAt', 'updatedAt']) &&
+                         isValidCalendarEntry(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(entryId) && isValidCalendarEntry(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['shootingDateKey', 'shootingTimeSlot', 'editingDeadlineKey', 'publishingDateKey', 'publishingTime', 'status', 'studioRoom', 'updatedAt']);
+        allow delete: if isValidId(entryId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /shooting_schedules/{scheduleId} {
+        allow get: if isValidId(scheduleId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(scheduleId) &&
+                         incoming().keys().hasAll(['userId', 'scheduleMode', 'channelId', 'channelName', 'topicOrKathaName', 'scriptName', 'talentId', 'talentName', 'coordinatorName', 'editorName', 'shootDateKey', 'arrivalTime', 'startTime', 'expectedEndTime', 'actualEndTime', 'studioRoom', 'specialRequirements', 'materialsRequired', 'materialsAvailable', 'purchaseRequired', 'recordingStatus', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'scheduleMode', 'channelId', 'channelName', 'topicOrKathaName', 'scriptName', 'talentId', 'talentName', 'coordinatorName', 'editorName', 'shootDateKey', 'arrivalTime', 'startTime', 'expectedEndTime', 'actualEndTime', 'studioRoom', 'specialRequirements', 'materialsRequired', 'materialsAvailable', 'purchaseRequired', 'recordingStatus', 'createdAt', 'updatedAt']) &&
+                         isValidShootingSchedule(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(scheduleId) && isValidShootingSchedule(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['recordingStatus', 'actualEndTime', 'materialsAvailable', 'purchaseRequired', 'updatedAt']);
+        allow delete: if isValidId(scheduleId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /ai_assignments/{assignmentId} {
+        allow get: if isValidId(assignmentId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(assignmentId) &&
+                         incoming().keys().hasAll(['userId', 'assignmentCode', 'channelId', 'channelName', 'promptType', 'title', 'brief', 'deadlineMillis', 'assignedAtMillis', 'timeTakenMinutes', 'generatedPromptText', 'attachedAssetName', 'status', 'reviewerNote', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'assignmentCode', 'channelId', 'channelName', 'promptType', 'title', 'brief', 'deadlineMillis', 'assignedAtMillis', 'startedAtMillis', 'submittedAtMillis', 'timeTakenMinutes', 'generatedPromptText', 'attachedAssetName', 'status', 'reviewerNote', 'createdAt', 'updatedAt']) &&
+                         isValidAiAssignment(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(assignmentId) && isValidAiAssignment(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['startedAtMillis', 'submittedAtMillis', 'timeTakenMinutes', 'generatedPromptText', 'attachedAssetName', 'status', 'reviewerNote', 'updatedAt']);
+        allow delete: if isValidId(assignmentId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /studio_files/{fileId} {
+        allow get: if isValidId(fileId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(fileId) &&
+                         incoming().keys().hasAll(['userId', 'channelId', 'channelName', 'projectName', 'contentTitle', 'fileType', 'fileName', 'uploadedBy', 'uploadedById', 'uploadDateMillis', 'version', 'fileSizeLabel', 'approvalStatus', 'contentUri', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'channelId', 'channelName', 'projectName', 'contentTitle', 'fileType', 'fileName', 'uploadedBy', 'uploadedById', 'uploadDateMillis', 'version', 'fileSizeLabel', 'approvalStatus', 'contentUri', 'createdAt', 'updatedAt']) &&
+                         isValidStudioFile(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(fileId) && isValidStudioFile(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['approvalStatus', 'version', 'updatedAt']);
+        allow delete: if isValidId(fileId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /social_posts/{postId} {
+        allow get: if isValidId(postId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(postId) &&
+                         incoming().keys().hasAll(['userId', 'channelId', 'channelName', 'title', 'platform', 'videoFileName', 'thumbnailName', 'caption', 'description', 'hashtags', 'keywords', 'scriptCode', 'publishDateKey', 'publishTime', 'status', 'publishedUrl', 'checklistVerified', 'viewsCount', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'channelId', 'channelName', 'title', 'platform', 'videoFileName', 'thumbnailName', 'caption', 'description', 'hashtags', 'keywords', 'scriptCode', 'publishDateKey', 'publishTime', 'status', 'publishedUrl', 'checklistVerified', 'viewsCount', 'createdAt', 'updatedAt']) &&
+                         isValidSocialPost(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(postId) && isValidSocialPost(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'platform', 'videoFileName', 'thumbnailName', 'caption', 'description', 'hashtags', 'keywords', 'publishDateKey', 'publishTime', 'status', 'publishedUrl', 'checklistVerified', 'viewsCount', 'updatedAt']);
+        allow delete: if isValidId(postId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /financial_records/{recordId} {
+        allow get: if isValidId(recordId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(recordId) &&
+                         incoming().keys().hasAll(['userId', 'recordType', 'category', 'title', 'amountInr', 'monthKey', 'recordDateKey', 'enteredBy', 'notes', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'recordType', 'category', 'title', 'amountInr', 'monthKey', 'recordDateKey', 'enteredBy', 'notes', 'createdAt', 'updatedAt']) &&
+                         isValidFinancialRecord(incoming(), userId);
+        allow update: if false;
+        allow delete: if isValidId(recordId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /notifications/{notificationId} {
+        allow get: if isValidId(notificationId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(notificationId) &&
+                         incoming().keys().hasAll(['userId', 'recipientUserId', 'title', 'message', 'category', 'read', 'createdAtMillis', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'recipientUserId', 'title', 'message', 'category', 'read', 'createdAtMillis', 'createdAt', 'updatedAt']) &&
+                         isValidNotification(incoming(), userId);
+        allow update: if isSignedIn() && isValidId(notificationId) && isValidNotification(incoming(), userId) &&
+                         (isOwner(userId) || isAdmin()) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt']);
+        allow delete: if isValidId(notificationId) && (isOwner(userId) || isAdmin());
+      }
+
+      match /login_history/{historyId} {
+        allow get: if isValidId(historyId) && (isOwner(userId) || isAdmin());
+        allow list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidId(historyId) &&
+                         incoming().keys().hasAll(['userId', 'memberId', 'username', 'portal', 'deviceInfo', 'success', 'timestampMillis', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'memberId', 'username', 'portal', 'deviceInfo', 'success', 'timestampMillis', 'createdAt', 'updatedAt']) &&
+                         isValidLoginHistory(incoming(), userId);
+        allow update: if false;
+        allow delete: if isValidId(historyId) && (isOwner(userId) || isAdmin());
+      }
+    }
+  }
+}

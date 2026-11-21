@@ -1,0 +1,492 @@
+{
+  "entities": {
+    "WorkspaceUser": {
+      "title": "WorkspaceUser",
+      "description": "Authenticated Google user profile and active StudioFlow 360 persona selection.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of workspace owner." },
+        "email": { "type": "string", "description": "Verified Google account email." },
+        "displayName": { "type": "string", "description": "Google display name." },
+        "activePersonaId": { "type": "string", "description": "Currently selected StudioFlow 360 member ID." },
+        "activePortal": { "type": "string", "description": "Selected access portal." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp via FieldValue.serverTimestamp()." }
+      },
+      "required": ["userId", "email", "displayName", "activePersonaId", "activePortal", "createdAt", "updatedAt"]
+    },
+    "StudioMember": {
+      "title": "StudioMember",
+      "description": "Serplive Solutions role profile (10 internal & external personas).",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "username": { "type": "string" },
+        "fullName": { "type": "string" },
+        "designation": { "type": "string" },
+        "department": { "type": "string" },
+        "role": { "type": "string" },
+        "assignedChannelsCsv": { "type": "string" },
+        "avatarInitials": { "type": "string" },
+        "avatarColorHex": { "type": "integer" },
+        "accountStatus": { "type": "string", "enum": ["ACTIVE", "SUSPENDED"] },
+        "lastLoginAt": { "type": "integer" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "username", "fullName", "designation", "department", "role", "assignedChannelsCsv", "avatarInitials", "avatarColorHex", "accountStatus", "lastLoginAt", "email", "createdAt", "updatedAt"]
+    },
+    "Channel": {
+      "title": "Channel",
+      "description": "Isolated channel workspace metrics and metadata across 5 company channels.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "categoryTag": { "type": "string" },
+        "description": { "type": "string" },
+        "leadCoordinator": { "type": "string" },
+        "accentColorHex": { "type": "integer" },
+        "monthlyVideoTarget": { "type": "integer" },
+        "videosProduced": { "type": "integer" },
+        "videosPublished": { "type": "integer" },
+        "growthPercent": { "type": "number" },
+        "subscribersLabel": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "name", "categoryTag", "description", "leadCoordinator", "accentColorHex", "monthlyVideoTarget", "videosProduced", "videosPublished", "growthPercent", "subscribersLabel", "createdAt", "updatedAt"]
+    },
+    "WorkspaceItem": {
+      "title": "WorkspaceItem",
+      "description": "Channel-specific craft ideas, shopping lists, tech research, client leads, and documentary sources.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "channelId": { "type": "string" },
+        "itemType": { "type": "string" },
+        "title": { "type": "string" },
+        "details": { "type": "string" },
+        "metaBadge": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "ownerName": { "type": "string" },
+        "updatedAtMillis": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "channelId", "itemType", "title", "details", "metaBadge", "completed", "ownerName", "updatedAtMillis", "createdAt", "updatedAt"]
+    },
+    "StudioTask": {
+      "title": "StudioTask",
+      "description": "Multi-employee production task with 8-status lifecycle and deadline tracking.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "taskCode": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "instructions": { "type": "string" },
+        "channelId": { "type": "string" },
+        "channelName": { "type": "string" },
+        "category": { "type": "string" },
+        "assignedToIdsCsv": { "type": "string" },
+        "assignedToNamesCsv": { "type": "string" },
+        "createdById": { "type": "string" },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "URGENT"] },
+        "status": { "type": "string", "enum": ["ASSIGNED", "ACCEPTED", "IN_PROGRESS", "SUBMITTED_FOR_REVIEW", "REVISION_REQUIRED", "APPROVED", "COMPLETED", "OVERDUE"] },
+        "reviewStatus": { "type": "string" },
+        "startDateMillis": { "type": "integer" },
+        "deadlineMillis": { "type": "integer" },
+        "expectedMinutes": { "type": "integer" },
+        "actualMinutes": { "type": "integer" },
+        "completedAtMillis": { "type": "integer" },
+        "delayReason": { "type": "string" },
+        "revisedDeadlineMillis": { "type": "integer" },
+        "revisedDeadlineMet": { "type": "boolean" },
+        "managerComments": { "type": "string" },
+        "complexityWeight": { "type": "integer" },
+        "attachedFileName": { "type": "string" },
+        "submissionNote": { "type": "string" },
+        "submissionFileName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "taskCode", "title", "description", "instructions", "channelId", "channelName", "category", "assignedToIdsCsv", "assignedToNamesCsv", "createdById", "priority", "status", "reviewStatus", "startDateMillis", "deadlineMillis", "expectedMinutes", "actualMinutes", "delayReason", "managerComments", "complexityWeight", "attachedFileName", "submissionNote", "submissionFileName", "createdAt", "updatedAt"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Geofenced, Wi-Fi SSID, and Dynamic QR verified daily attendance record.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "memberId": { "type": "string" },
+        "userName": { "type": "string" },
+        "dateKey": { "type": "string" },
+        "checkInTimeMillis": { "type": "integer" },
+        "checkOutTimeMillis": { "type": "integer" },
+        "verificationMethod": { "type": "string" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "distanceMeters": { "type": "number" },
+        "wifiSsid": { "type": "string" },
+        "lateArrival": { "type": "boolean" },
+        "earlyDeparture": { "type": "boolean" },
+        "workingMinutes": { "type": "integer" },
+        "status": { "type": "string" },
+        "correctionReason": { "type": "string" },
+        "correctionRequested": { "type": "boolean" },
+        "correctionApprovedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "memberId", "userName", "dateKey", "verificationMethod", "latitude", "longitude", "distanceMeters", "wifiSsid", "lateArrival", "earlyDeparture", "workingMinutes", "status", "correctionReason", "correctionRequested", "correctionApprovedBy", "createdAt", "updatedAt"]
+    },
+    "OfficeConfig": {
+      "title": "OfficeConfig",
+      "description": "Authorized Studio HQ coordinates, geofence radius, Wi-Fi SSID, and rotating QR settings.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "officeName": { "type": "string" },
+        "officeLat": { "type": "number" },
+        "officeLng": { "type": "number" },
+        "geofenceRadiusMeters": { "type": "number" },
+        "authorizedWifiSsid": { "type": "string" },
+        "workStartHour": { "type": "integer" },
+        "workStartMinute": { "type": "integer" },
+        "workEndHour": { "type": "integer" },
+        "workEndMinute": { "type": "integer" },
+        "currentQrToken": { "type": "string" },
+        "qrUpdatedAt": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "officeName", "officeLat", "officeLng", "geofenceRadiusMeters", "authorizedWifiSsid", "workStartHour", "workStartMinute", "workEndHour", "workEndMinute", "currentQrToken", "qrUpdatedAt", "createdAt", "updatedAt"]
+    },
+    "AttendanceAudit": {
+      "title": "AttendanceAudit",
+      "description": "Immutable attendance & geofence verification audit trail.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "targetUserName": { "type": "string" },
+        "action": { "type": "string" },
+        "performedBy": { "type": "string" },
+        "details": { "type": "string" },
+        "timestampMillis": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "targetUserName", "action", "performedBy", "details", "timestampMillis", "createdAt", "updatedAt"]
+    },
+    "Script": {
+      "title": "Script",
+      "description": "Studio video script with editorial verification and error highlighting.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "scriptCode": { "type": "string" },
+        "channelId": { "type": "string" },
+        "channelName": { "type": "string" },
+        "videoTitle": { "type": "string" },
+        "writerId": { "type": "string" },
+        "writerName": { "type": "string" },
+        "anchorName": { "type": "string" },
+        "editorName": { "type": "string" },
+        "deadlineMillis": { "type": "integer" },
+        "status": { "type": "string", "enum": ["IDEA", "SCRIPT_WRITING", "SCRIPT_SUBMITTED", "VERIFICATION", "REVISION_REQUIRED", "APPROVED", "SHOOTING_READY"] },
+        "currentVersion": { "type": "integer" },
+        "contentBody": { "type": "string" },
+        "reviewerComments": { "type": "string" },
+        "highlightedErrors": { "type": "string" },
+        "factCheckVerified": { "type": "boolean" },
+        "attachmentName": { "type": "string" },
+        "createdAtMillis": { "type": "integer" },
+        "updatedAtMillis": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "scriptCode", "channelId", "channelName", "videoTitle", "writerId", "writerName", "anchorName", "editorName", "deadlineMillis", "status", "currentVersion", "contentBody", "reviewerComments", "highlightedErrors", "factCheckVerified", "attachmentName", "createdAtMillis", "updatedAtMillis", "createdAt", "updatedAt"]
+    },
+    "ScriptVersion": {
+      "title": "ScriptVersion",
+      "description": "Immutable revision snapshot for a studio script.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "scriptDocId": { "type": "string" },
+        "versionNumber": { "type": "integer" },
+        "contentSnapshot": { "type": "string" },
+        "editedBy": { "type": "string" },
+        "changeNote": { "type": "string" },
+        "createdAtMillis": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "scriptDocId", "versionNumber", "contentSnapshot", "editedBy", "changeNote", "createdAtMillis", "createdAt", "updatedAt"]
+    },
+    "CalendarEntry": {
+      "title": "CalendarEntry",
+      "description": "Channel content calendar schedule entry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "channelId": { "type": "string" },
+        "channelName": { "type": "string" },
+        "contentTitle": { "type": "string" },
+        "category": { "type": "string" },
+        "scriptWriter": { "type": "string" },
+        "anchorName": { "type": "string" },
+        "editorName": { "type": "string" },
+        "shootingDateKey": { "type": "string" },
+        "shootingTimeSlot": { "type": "string" },
+        "editingDeadlineKey": { "type": "string" },
+        "publishingDateKey": { "type": "string" },
+        "publishingTime": { "type": "string" },
+        "platform": { "type": "string" },
+        "status": { "type": "string" },
+        "studioRoom": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "channelId", "channelName", "contentTitle", "category", "scriptWriter", "anchorName", "editorName", "shootingDateKey", "shootingTimeSlot", "editingDeadlineKey", "publishingDateKey", "publishingTime", "platform", "status", "studioRoom", "createdAt", "updatedAt"]
+    },
+    "ShootingSchedule": {
+      "title": "ShootingSchedule",
+      "description": "Studio room & talent shooting schedule for Pandit Ji, Art Teacher, and Anchors.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "scheduleMode": { "type": "string" },
+        "channelId": { "type": "string" },
+        "channelName": { "type": "string" },
+        "topicOrKathaName": { "type": "string" },
+        "scriptName": { "type": "string" },
+        "talentId": { "type": "string" },
+        "talentName": { "type": "string" },
+        "coordinatorName": { "type": "string" },
+        "editorName": { "type": "string" },
+        "shootDateKey": { "type": "string" },
+        "arrivalTime": { "type": "string" },
+        "startTime": { "type": "string" },
+        "expectedEndTime": { "type": "string" },
+        "actualEndTime": { "type": "string" },
+        "studioRoom": { "type": "string" },
+        "specialRequirements": { "type": "string" },
+        "materialsRequired": { "type": "string" },
+        "materialsAvailable": { "type": "boolean" },
+        "purchaseRequired": { "type": "string" },
+        "recordingStatus": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "scheduleMode", "channelId", "channelName", "topicOrKathaName", "scriptName", "talentId", "talentName", "coordinatorName", "editorName", "shootDateKey", "arrivalTime", "startTime", "expectedEndTime", "actualEndTime", "studioRoom", "specialRequirements", "materialsRequired", "materialsAvailable", "purchaseRequired", "recordingStatus", "createdAt", "updatedAt"]
+    },
+    "AiAssignment": {
+      "title": "AiAssignment",
+      "description": "AI prompt generation assignment & delivery timer for Manoj.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "assignmentCode": { "type": "string" },
+        "channelId": { "type": "string" },
+        "channelName": { "type": "string" },
+        "promptType": { "type": "string" },
+        "title": { "type": "string" },
+        "brief": { "type": "string" },
+        "deadlineMillis": { "type": "integer" },
+        "assignedAtMillis": { "type": "integer" },
+        "startedAtMillis": { "type": "integer" },
+        "submittedAtMillis": { "type": "integer" },
+        "timeTakenMinutes": { "type": "integer" },
+        "generatedPromptText": { "type": "string" },
+        "attachedAssetName": { "type": "string" },
+        "status": { "type": "string", "enum": ["ASSIGNED", "IN_PROGRESS", "SUBMITTED", "REVISION_REQUIRED", "APPROVED"] },
+        "reviewerNote": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "assignmentCode", "channelId", "channelName", "promptType", "title", "brief", "deadlineMillis", "assignedAtMillis", "timeTakenMinutes", "generatedPromptText", "attachedAssetName", "status", "reviewerNote", "createdAt", "updatedAt"]
+    },
+    "StudioFile": {
+      "title": "StudioFile",
+      "description": "Structured Channel -> Project -> Content -> File Type metadata portal.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "channelId": { "type": "string" },
+        "channelName": { "type": "string" },
+        "projectName": { "type": "string" },
+        "contentTitle": { "type": "string" },
+        "fileType": { "type": "string" },
+        "fileName": { "type": "string" },
+        "uploadedBy": { "type": "string" },
+        "uploadedById": { "type": "string" },
+        "uploadDateMillis": { "type": "integer" },
+        "version": { "type": "string" },
+        "fileSizeLabel": { "type": "string" },
+        "approvalStatus": { "type": "string" },
+        "contentUri": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "channelId", "channelName", "projectName", "contentTitle", "fileType", "fileName", "uploadedBy", "uploadedById", "uploadDateMillis", "version", "fileSizeLabel", "approvalStatus", "contentUri", "createdAt", "updatedAt"]
+    },
+    "SocialPost": {
+      "title": "SocialPost",
+      "description": "Social media publishing queue & live URL tracking.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "channelId": { "type": "string" },
+        "channelName": { "type": "string" },
+        "title": { "type": "string" },
+        "platform": { "type": "string", "enum": ["YOUTUBE", "FACEBOOK", "INSTAGRAM"] },
+        "videoFileName": { "type": "string" },
+        "thumbnailName": { "type": "string" },
+        "caption": { "type": "string" },
+        "description": { "type": "string" },
+        "hashtags": { "type": "string" },
+        "keywords": { "type": "string" },
+        "scriptCode": { "type": "string" },
+        "publishDateKey": { "type": "string" },
+        "publishTime": { "type": "string" },
+        "status": { "type": "string", "enum": ["READY_FOR_PUBLISHING", "SCHEDULED", "PUBLISHED", "PERFORMANCE_TRACKING"] },
+        "publishedUrl": { "type": "string" },
+        "checklistVerified": { "type": "boolean" },
+        "viewsCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "channelId", "channelName", "title", "platform", "videoFileName", "thumbnailName", "caption", "description", "hashtags", "keywords", "scriptCode", "publishDateKey", "publishTime", "status", "publishedUrl", "checklistVerified", "viewsCount", "createdAt", "updatedAt"]
+    },
+    "FinancialRecord": {
+      "title": "FinancialRecord",
+      "description": "Restricted 18-month investor capital, expense, and revenue ledger.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "recordType": { "type": "string", "enum": ["INVESTMENT", "EXPENSE", "REVENUE"] },
+        "category": { "type": "string" },
+        "title": { "type": "string" },
+        "amountInr": { "type": "number" },
+        "monthKey": { "type": "string" },
+        "recordDateKey": { "type": "string" },
+        "enteredBy": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "recordType", "category", "title", "amountInr", "monthKey", "recordDateKey", "enteredBy", "notes", "createdAt", "updatedAt"]
+    },
+    "NotificationItem": {
+      "title": "NotificationItem",
+      "description": "Real-time studio notification feed.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "recipientUserId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "category": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAtMillis": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "recipientUserId", "title", "message", "category", "read", "createdAtMillis", "createdAt", "updatedAt"]
+    },
+    "LoginHistoryItem": {
+      "title": "LoginHistoryItem",
+      "description": "Audit log of authenticated studio sessions.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "memberId": { "type": "string" },
+        "username": { "type": "string" },
+        "portal": { "type": "string" },
+        "deviceInfo": { "type": "string" },
+        "success": { "type": "boolean" },
+        "timestampMillis": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "FieldValue.serverTimestamp()" }
+      },
+      "required": ["userId", "memberId", "username", "portal", "deviceInfo", "success", "timestampMillis", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/WorkspaceUser" },
+      "description": "Authenticated workspace owner profile."
+    },
+    "/users/{userId}/studio_members/{memberId}": {
+      "schema": { "$ref": "#/entities/StudioMember" },
+      "description": "Ten Serplive Solutions role profiles within the workspace."
+    },
+    "/users/{userId}/channels/{channelId}": {
+      "schema": { "$ref": "#/entities/Channel" },
+      "description": "Five isolated content channels."
+    },
+    "/users/{userId}/workspace_items/{itemId}": {
+      "schema": { "$ref": "#/entities/WorkspaceItem" },
+      "description": "Channel workspace items."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/StudioTask" },
+      "description": "Production tasks."
+    },
+    "/users/{userId}/attendance/{attendanceId}": {
+      "schema": { "$ref": "#/entities/AttendanceRecord" },
+      "description": "Geofenced attendance records."
+    },
+    "/users/{userId}/office_configs/{configId}": {
+      "schema": { "$ref": "#/entities/OfficeConfig" },
+      "description": "HQ geofence & Wi-Fi settings."
+    },
+    "/users/{userId}/attendance_audits/{auditId}": {
+      "schema": { "$ref": "#/entities/AttendanceAudit" },
+      "description": "Attendance verification audit log."
+    },
+    "/users/{userId}/scripts/{scriptId}": {
+      "schema": { "$ref": "#/entities/Script" },
+      "description": "Video scripts."
+    },
+    "/users/{userId}/script_versions/{versionId}": {
+      "schema": { "$ref": "#/entities/ScriptVersion" },
+      "description": "Script revision history."
+    },
+    "/users/{userId}/calendar_entries/{entryId}": {
+      "schema": { "$ref": "#/entities/CalendarEntry" },
+      "description": "Content calendars."
+    },
+    "/users/{userId}/shooting_schedules/{scheduleId}": {
+      "schema": { "$ref": "#/entities/ShootingSchedule" },
+      "description": "Studio shooting schedules."
+    },
+    "/users/{userId}/ai_assignments/{assignmentId}": {
+      "schema": { "$ref": "#/entities/AiAssignment" },
+      "description": "AI prompt generation assignments."
+    },
+    "/users/{userId}/studio_files/{fileId}": {
+      "schema": { "$ref": "#/entities/StudioFile" },
+      "description": "Structured file portal entries."
+    },
+    "/users/{userId}/social_posts/{postId}": {
+      "schema": { "$ref": "#/entities/SocialPost" },
+      "description": "Social publishing tracker."
+    },
+    "/users/{userId}/financial_records/{recordId}": {
+      "schema": { "$ref": "#/entities/FinancialRecord" },
+      "description": "Financial & investor ledger."
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": { "$ref": "#/entities/NotificationItem" },
+      "description": "Studio alerts."
+    },
+    "/users/{userId}/login_history/{historyId}": {
+      "schema": { "$ref": "#/entities/LoginHistoryItem" },
+      "description": "Session login audit log."
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "StudioFlow 360",
+  "description": "Content Creation Studio & Company Management App for Serplive Solutions featuring 5 channels, RBAC, geofenced office attendance, script & task workflows, AI prompt studio, and executive/investor analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
